@@ -31,6 +31,7 @@ import { deferImagePreload, preloadImages } from '../features/level1/useAssetPre
 const emit = defineEmits<{
   back: []
   complete: []
+  success: []
 }>()
 
 const {
@@ -89,6 +90,7 @@ const completeDwellInspection = (item: LuggageItem) => {
     scanPulseKey.value += 1
     educationContent.value = level1EducationByItemId[item.id] ?? null
     if (outcome === 'suspicious' && educationContent.value) pauseGame()
+    if (outcome === 'success' && !educationContent.value) emit('success')
   }
   if (outcome === 'normal') guideRevealKey.value += 1
   activeDwellItemId = null
@@ -154,7 +156,9 @@ const claimReward = () => emit('complete')
 
 const continueAfterEducation = () => {
   const shouldResume = state.status === 'paused'
+  const shouldRevealSuccess = state.status === 'success'
   educationContent.value = null
+  if (shouldRevealSuccess) emit('success')
   if (shouldResume) resumeGame()
 }
 

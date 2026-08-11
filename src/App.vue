@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue'
 
+import GameMusicControl from './components/common/GameMusicControl.vue'
+import { useGameAudio, type GameMusicTrack } from './features/audio/useGameAudio'
 import HomeView from './views/HomeView.vue'
 
 const AdventureMapView = defineAsyncComponent({
@@ -30,39 +32,54 @@ const readCompletedLevelCount = () => {
 }
 
 const currentHash = ref(window.location.hash)
-const enteredMapFromHome = ref(false)
 const hasCompletedSummonGuide = ref(currentHash.value === '#/adventure-map')
 const completedLevelCount = ref(readCompletedLevelCount())
 const isMapPage = computed(() => currentHash.value === '#/adventure-map')
 const isLevel1Page = computed(() => currentHash.value === '#/level/1')
+const {
+  isMusicPlaying,
+  musicButtonLabel,
+  playSuccessSound,
+  setMusicTrack,
+  startMusicFromUserGesture,
+  toggleMusic,
+} = useGameAudio()
+
+const getMusicTrackForHash = (hash: string): GameMusicTrack =>
+  hash === '#/level/1' ? 'level1' : 'home-map'
+
+setMusicTrack(getMusicTrackForHash(currentHash.value))
 
 const syncRoute = () => {
   currentHash.value = window.location.hash
+  setMusicTrack(getMusicTrackForHash(currentHash.value))
 }
 
 const openAdventureMap = () => {
-  enteredMapFromHome.value = true
+  setMusicTrack('home-map')
+  startMusicFromUserGesture()
   hasCompletedSummonGuide.value = true
   window.location.hash = '/adventure-map'
 }
 
 const leaveAdventureMap = () => {
+  setMusicTrack('home-map')
+  startMusicFromUserGesture()
   hasCompletedSummonGuide.value = true
-
-  if (enteredMapFromHome.value) {
-    enteredMapFromHome.value = false
-    window.history.back()
-    return
-  }
-
   window.location.hash = '/'
 }
 
 const openLevel = (level: number) => {
-  if (level === 1) window.location.hash = '/level/1'
+  if (level !== 1) return
+
+  setMusicTrack('level1')
+  startMusicFromUserGesture()
+  window.location.hash = '/level/1'
 }
 
 const leaveLevel = () => {
+  setMusicTrack('home-map')
+  startMusicFromUserGesture()
   window.location.hash = '/adventure-map'
 }
 
@@ -87,6 +104,21 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncRoute))
     @back="leaveAdventureMap"
     @select-level="openLevel"
   />
-  <Level1View v-else-if="isLevel1Page" @back="leaveLevel" @complete="completeLevel1" />
-  <HomeView v-else :is-summoned="hasCompletedSummonGuide" @start="openAdventureMap" />
+  <Level1View
+    v-else-if="isLevel1Page"
+    @back="leaveLevel"
+    @complete="completeLevel1"
+    @success="playSuccessSound"
+  />
+  <HomeView
+    v-else
+    :is-summoned="hasCompletedSummonGuide"
+    @audio-unlock="startMusicFromUserGesture"
+    @start="openAdventureMap"
+  />
+  <GameMusicControl
+    :is-playing="isMusicPlaying"
+    :label="musicButtonLabel"
+    @toggle="toggleMusic"
+  />
 </template>

@@ -38,7 +38,10 @@ const props = withDefaults(defineProps<{ isSummoned?: boolean }>(), {
   isSummoned: false,
 })
 
-const emit = defineEmits<{ start: [] }>()
+const emit = defineEmits<{
+  'audio-unlock': []
+  start: []
+}>()
 
 const isRuleOpen = ref(false)
 const isCatalogOpen = ref(false)
@@ -162,6 +165,7 @@ const catalogItems = [
 const collectedCount = catalogItems.filter((item) => item.obtained).length
 
 const summonCharacter = () => {
+  emit('audio-unlock')
   isSummonPromptVisible.value = false
   isCharacterVisible.value = true
   isCharacterAnimating.value = true
@@ -243,6 +247,7 @@ const closeTips = async () => {
 }
 
 const handleStart = () => {
+  emit('audio-unlock')
   emit('start')
 }
 </script>
