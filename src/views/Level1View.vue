@@ -31,6 +31,8 @@ import { deferImagePreload, preloadImages } from '../features/level1/useAssetPre
 const emit = defineEmits<{
   back: []
   complete: []
+  countdown: [remainingSeconds: number]
+  countdownStop: []
   success: []
 }>()
 
@@ -169,6 +171,23 @@ watch(
   },
 )
 
+watch(
+  [() => state.status, () => state.remainingSeconds],
+  ([status, remainingSeconds], [previousStatus, previousRemainingSeconds]) => {
+    if (status !== 'playing') {
+      if (previousStatus === 'playing') emit('countdownStop')
+      return
+    }
+
+    const enteredFinalCountdown =
+      remainingSeconds >= 1 &&
+      remainingSeconds <= 3 &&
+      (previousStatus !== 'playing' || previousRemainingSeconds > 3)
+
+    if (enteredFinalCountdown) emit('countdown', remainingSeconds)
+  },
+)
+
 onMounted(async () => {
   await preloadImages(level1CriticalAssetUrls)
   if (!isMounted) return
@@ -178,6 +197,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   isMounted = false
+  emit('countdownStop')
   clearDwellDetection()
   cancelDeferredPreload?.()
 })

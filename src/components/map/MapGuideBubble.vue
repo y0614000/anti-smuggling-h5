@@ -4,17 +4,18 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 const props = withDefaults(
   defineProps<{
     image: string
+    text?: string
     startTyping?: boolean
   }>(),
   {
+    text: '先从第一关\n行李检查开始吧！',
     startTyping: false,
   },
 )
 
-const FULL_TEXT = '先从第一关\n行李检查开始吧！'
 const TYPE_INTERVAL_MS = 90
-const textCharacters = Array.from(FULL_TEXT)
 const typedText = ref('')
+const accessibleText = computed(() => props.text.replace('\n', '，'))
 const typedLines = computed(() => {
   const [firstLine = '', secondLine = ''] = typedText.value.split('\n')
   return [firstLine, secondLine]
@@ -22,6 +23,7 @@ const typedLines = computed(() => {
 
 let typingTimer: ReturnType<typeof setTimeout> | undefined
 let characterIndex = 0
+let textCharacters: string[] = []
 
 const typeNextCharacter = () => {
   if (characterIndex >= textCharacters.length) return
@@ -32,16 +34,17 @@ const typeNextCharacter = () => {
 }
 
 watch(
-  () => props.startTyping,
-  (shouldStart) => {
+  [() => props.startTyping, () => props.text],
+  ([shouldStart]) => {
     clearTimeout(typingTimer)
     typedText.value = ''
     characterIndex = 0
+    textCharacters = Array.from(props.text)
 
     if (!shouldStart) return
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      typedText.value = FULL_TEXT
+      typedText.value = props.text
       return
     }
 
@@ -54,7 +57,7 @@ onBeforeUnmount(() => clearTimeout(typingTimer))
 </script>
 
 <template>
-  <div class="guide-bubble" role="status" aria-label="先从第一关，行李检查开始吧！">
+  <div class="guide-bubble" role="status" :aria-label="accessibleText">
     <img :src="image" alt="" loading="eager" decoding="async" draggable="false" />
     <p aria-hidden="true">
       <span>{{ typedLines[0] }}</span>

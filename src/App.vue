@@ -39,9 +39,11 @@ const isLevel1Page = computed(() => currentHash.value === '#/level/1')
 const {
   isMusicPlaying,
   musicButtonLabel,
+  playCountdownSound,
   playSuccessSound,
   setMusicTrack,
   startMusicFromUserGesture,
+  stopCountdownSound,
   toggleMusic,
 } = useGameAudio()
 
@@ -108,10 +110,13 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncRoute))
     v-else-if="isLevel1Page"
     @back="leaveLevel"
     @complete="completeLevel1"
+    @countdown="playCountdownSound"
+    @countdown-stop="stopCountdownSound"
     @success="playSuccessSound"
   />
   <HomeView
     v-else
+    :completed-level-count="completedLevelCount"
     :is-summoned="hasCompletedSummonGuide"
     @audio-unlock="startMusicFromUserGesture"
     @start="openAdventureMap"

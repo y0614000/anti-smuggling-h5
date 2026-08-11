@@ -2,6 +2,7 @@ import { computed, readonly, ref } from 'vue'
 
 import carefreeMusicUrl from '../../assets/audio/bgm/Carefree.mp3'
 import investigationsMusicUrl from '../../assets/audio/bgm/Investigations.mp3'
+import countdownSoundUrl from '../../assets/audio/sfx/mixkit-simple-game-countdown-921.wav'
 import successSoundUrl from '../../assets/audio/sfx/mixkit-fantasy-game-success-notification-270.wav'
 
 export type GameMusicTrack = 'home-map' | 'level1'
@@ -14,6 +15,7 @@ const MUSIC_URLS: Record<GameMusicTrack, string> = {
 const BACKGROUND_VOLUME = 0.42
 const DUCKED_BACKGROUND_VOLUME = 0.16
 const SUCCESS_SOUND_VOLUME = 0.72
+const COUNTDOWN_SOUND_VOLUME = 0.7
 
 const isMusicEnabled = ref(true)
 const isMusicPlaying = ref(false)
@@ -22,6 +24,7 @@ const currentTrack = ref<GameMusicTrack>('home-map')
 
 let backgroundAudio: HTMLAudioElement | undefined
 let successAudio: HTMLAudioElement | undefined
+let countdownAudio: HTMLAudioElement | undefined
 let playbackRequestId = 0
 
 const createBackgroundAudio = () => {
@@ -68,6 +71,15 @@ const getSuccessAudio = () => {
   return successAudio
 }
 
+const getCountdownAudio = () => {
+  if (countdownAudio) return countdownAudio
+
+  countdownAudio = new Audio(countdownSoundUrl)
+  countdownAudio.preload = 'auto'
+  countdownAudio.volume = COUNTDOWN_SOUND_VOLUME
+  return countdownAudio
+}
+
 const playMusic = async () => {
   if (!isMusicEnabled.value || isMusicPlaying.value || isMusicPending.value) return
 
@@ -95,6 +107,10 @@ const pauseMusic = () => {
     successAudio.pause()
     successAudio.currentTime = 0
   }
+  if (countdownAudio && !countdownAudio.paused) {
+    countdownAudio.pause()
+    countdownAudio.currentTime = 0
+  }
   isMusicPlaying.value = false
 }
 
@@ -119,6 +135,7 @@ const setMusicTrack = (track: GameMusicTrack) => {
 
   const shouldContinuePlaying = isMusicPlaying.value || isMusicPending.value
   currentTrack.value = track
+  if (track === 'level1') getCountdownAudio()
 
   if (!backgroundAudio) return
 
@@ -134,6 +151,7 @@ const setMusicTrack = (track: GameMusicTrack) => {
 const playSuccessSound = () => {
   if (!isMusicEnabled.value) return
 
+  stopCountdownSound()
   const audio = getSuccessAudio()
   if (backgroundAudio && isMusicPlaying.value) {
     backgroundAudio.volume = DUCKED_BACKGROUND_VOLUME
@@ -150,6 +168,35 @@ const playSuccessSound = () => {
   })
 }
 
+function stopCountdownSound() {
+  if (!countdownAudio) return
+
+  countdownAudio.pause()
+  try {
+    countdownAudio.currentTime = 0
+  } catch {
+    // iOS 在音频元数据尚未就绪时可能拒绝设置 currentTime。
+  }
+}
+
+const playCountdownSound = (remainingSeconds: number) => {
+  if (!isMusicEnabled.value || remainingSeconds < 1 || remainingSeconds > 3) return
+
+  const audio = getCountdownAudio()
+  audio.pause()
+
+  try {
+    // 音频的三个提示音分别位于约 0、1、2 秒处；暂停后可按剩余秒数续播。
+    audio.currentTime = 3 - remainingSeconds
+  } catch {
+    // iOS 在音频元数据尚未就绪时可能拒绝设置 currentTime。
+  }
+
+  void audio.play().catch(() => {
+    // 未获得移动端音频权限时保持静默，不影响倒计时逻辑。
+  })
+}
+
 export const useGameAudio = () => ({
   currentTrack: readonly(currentTrack),
   isMusicEnabled: readonly(isMusicEnabled),
@@ -158,9 +205,11 @@ export const useGameAudio = () => ({
     isMusicPlaying.value || isMusicPending.value ? '暂停背景音乐' : '播放背景音乐',
   ),
   pauseMusic,
+  playCountdownSound,
   playMusic,
   playSuccessSound,
   setMusicTrack,
   startMusicFromUserGesture,
+  stopCountdownSound,
   toggleMusic,
 })

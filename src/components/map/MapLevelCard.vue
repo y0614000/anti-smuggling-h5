@@ -5,10 +5,12 @@ withDefaults(
     label: string
     locked?: boolean
     eager?: boolean
+    interactive?: boolean
   }>(),
   {
     locked: false,
     eager: false,
+    interactive: true,
   },
 )
 
@@ -18,10 +20,15 @@ const emit = defineEmits<{ select: [] }>()
 <template>
   <button
     class="map-level-card"
-    :class="{ 'map-level-card--locked': locked }"
+    :class="{
+      'map-level-card--locked': locked,
+      'map-level-card--inactive': !locked && !interactive,
+    }"
     type="button"
-    :disabled="locked"
-    :aria-label="locked ? `${label}，尚未解锁` : `${label}，可以挑战`"
+    :disabled="locked || !interactive"
+    :aria-label="
+      locked ? `${label}，尚未解锁` : interactive ? `${label}，可以挑战` : `${label}，已解锁`
+    "
     @click="emit('select')"
   >
     <img
@@ -66,7 +73,8 @@ const emit = defineEmits<{ select: [] }>()
   transform: scale(0.975);
 }
 
-.map-level-card--locked {
+.map-level-card--locked,
+.map-level-card--inactive {
   cursor: default;
 }
 

@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import bannerImage from '../assets/images/banner.png'
 import parcelImage from '../assets/images/box1.png'
 import suitcaseImage from '../assets/images/box2.png'
-import closeImage from '../assets/images/close.png'
 import catalogBackgroundImage from '../assets/images/daoju-tujian-bg-transparent.png'
 import characterAnimation from '../assets/images/ip-opening.webp'
 import characterAudio from '../assets/images/ip-opening.m4a'
@@ -20,6 +19,7 @@ import propImage from '../assets/images/nav-item-catalog.png'
 import ruleImage from '../assets/images/nav-activity-rules.png'
 import tipsImage from '../assets/images/nav-smuggling-tips.png'
 import obtainedIcon from '../assets/images/obtained-icon-final.png'
+import goObtainIcon from '../assets/images/go-obtain-icon-blue-final.png'
 import okImage from '../assets/images/ok.png'
 import progressCardBackgroundImage from '../assets/images/progress-card-bg.png'
 import knowledgeBadgeImage from '../assets/images/prop-knowledge-badge.png'
@@ -32,11 +32,17 @@ import tipsMnemonicCardImage from '../assets/images/anti-smuggling-mnemonic-card
 import tipsModalBackgroundImage from '../assets/images/anti-smuggling-tips-modal-bg.png'
 import tipsRefuseCardImage from '../assets/images/anti-smuggling-card-refuse.png'
 import tipsReportCardImage from '../assets/images/anti-smuggling-card-report-v2.png'
-import unobtainedIcon from '../assets/images/unobtained-icon-final.png'
 
-const props = withDefaults(defineProps<{ isSummoned?: boolean }>(), {
-  isSummoned: false,
-})
+const props = withDefaults(
+  defineProps<{
+    completedLevelCount?: number
+    isSummoned?: boolean
+  }>(),
+  {
+    completedLevelCount: 0,
+    isSummoned: false,
+  },
+)
 
 const emit = defineEmits<{
   'audio-unlock': []
@@ -129,7 +135,7 @@ const levelIntroItems = [
   },
 ] as const
 
-const catalogItems = [
+const catalogItemDefinitions = [
   {
     id: 'magnifier',
     name: '侦查放大镜',
@@ -138,7 +144,6 @@ const catalogItems = [
     sourceSuffix: '」获得',
     description: '发现隐藏的可疑线索',
     image: magnifierImage,
-    obtained: false,
   },
   {
     id: 'badge',
@@ -148,7 +153,6 @@ const catalogItems = [
     sourceSuffix: '」获得',
     description: '辨别来源不明和异常物品',
     image: knowledgeBadgeImage,
-    obtained: false,
   },
   {
     id: 'whistle',
@@ -158,11 +162,16 @@ const catalogItems = [
     sourceSuffix: '」获得',
     description: '发现线索及时提醒报告',
     image: whistleImage,
-    obtained: false,
   },
 ] as const
 
-const collectedCount = catalogItems.filter((item) => item.obtained).length
+const catalogItems = computed(() =>
+  catalogItemDefinitions.map((item, index) => ({
+    ...item,
+    obtained: props.completedLevelCount >= index + 1,
+  })),
+)
+const collectedCount = computed(() => Math.min(3, Math.max(0, props.completedLevelCount)))
 
 const summonCharacter = () => {
   emit('audio-unlock')
@@ -365,7 +374,7 @@ const handleStart = () => {
       </button>
 
       <Transition name="rule-modal">
-        <div v-if="isRuleOpen" class="rule-overlay" @click.self="closeRule">
+        <div v-if="isRuleOpen" class="rule-overlay">
           <section
             ref="ruleDialog"
             class="rule-dialog"
@@ -373,16 +382,9 @@ const handleStart = () => {
             aria-modal="true"
             aria-labelledby="rule-dialog-title"
             tabindex="-1"
-            @keydown.esc="closeRule"
           >
             <img class="rule-dialog-bg" :src="ruleBackgroundImage" alt="" draggable="false" />
             <h2 id="rule-dialog-title" class="visually-hidden">活动规则</h2>
-
-            <button class="dialog-close" type="button" aria-label="关闭活动规则" @click="closeRule">
-              <span class="sprite close-art" aria-hidden="true">
-                <img :src="closeImage" alt="" draggable="false" />
-              </span>
-            </button>
 
             <div class="rule-copy">
               <p class="rule-welcome">欢迎参加“国门小卫士——<br />反走私大冒险”！</p>
@@ -422,7 +424,6 @@ const handleStart = () => {
         <div
           v-if="isLevelIntroOpen"
           class="level-intro-overlay"
-          @click.self="closeLevelIntro"
         >
           <section
             ref="levelIntroDialog"
@@ -431,7 +432,6 @@ const handleStart = () => {
             aria-modal="true"
             aria-labelledby="level-intro-dialog-title"
             tabindex="-1"
-            @keydown.esc="closeLevelIntro"
           >
             <img
               class="level-intro-dialog-bg"
@@ -440,17 +440,6 @@ const handleStart = () => {
               draggable="false"
             />
             <h2 id="level-intro-dialog-title" class="visually-hidden">关卡介绍</h2>
-
-            <button
-              class="level-intro-close"
-              type="button"
-              aria-label="关闭关卡介绍"
-              @click="closeLevelIntro"
-            >
-              <span class="sprite close-art" aria-hidden="true">
-                <img :src="closeImage" alt="" draggable="false" />
-              </span>
-            </button>
 
             <p class="level-intro-lead">
               完成<span>3个关卡</span>，成为<span>反走私小专家</span>
@@ -492,7 +481,7 @@ const handleStart = () => {
       </Transition>
 
       <Transition name="tips-modal">
-        <div v-if="isTipsOpen" class="tips-overlay" @click.self="closeTips">
+        <div v-if="isTipsOpen" class="tips-overlay">
           <section
             ref="tipsDialog"
             class="tips-dialog"
@@ -500,7 +489,6 @@ const handleStart = () => {
             aria-modal="true"
             aria-labelledby="tips-dialog-title"
             tabindex="-1"
-            @keydown.esc="closeTips"
           >
             <img
               class="tips-dialog-bg"
@@ -509,17 +497,6 @@ const handleStart = () => {
               draggable="false"
             />
             <h2 id="tips-dialog-title" class="visually-hidden">反走私小贴士</h2>
-
-            <button
-              class="tips-close"
-              type="button"
-              aria-label="关闭反走私小贴士"
-              @click="closeTips"
-            >
-              <span class="sprite close-art" aria-hidden="true">
-                <img :src="closeImage" alt="" draggable="false" />
-              </span>
-            </button>
 
             <p class="tips-lead"><span>✦</span> 遇到可疑物品，先想一想！ <span>✦</span></p>
 
@@ -550,7 +527,7 @@ const handleStart = () => {
       </Transition>
 
       <Transition name="catalog-modal">
-        <div v-if="isCatalogOpen" class="catalog-overlay" @click.self="closeCatalog">
+        <div v-if="isCatalogOpen" class="catalog-overlay">
           <section
             ref="catalogDialog"
             class="catalog-dialog"
@@ -558,7 +535,6 @@ const handleStart = () => {
             aria-modal="true"
             aria-labelledby="catalog-dialog-title"
             tabindex="-1"
-            @keydown.esc="closeCatalog"
           >
             <img
               class="catalog-dialog-bg"
@@ -567,17 +543,6 @@ const handleStart = () => {
               draggable="false"
             />
             <h2 id="catalog-dialog-title" class="visually-hidden">道具图鉴</h2>
-
-            <button
-              class="catalog-close"
-              type="button"
-              aria-label="关闭道具图鉴"
-              @click="closeCatalog"
-            >
-              <span class="sprite close-art" aria-hidden="true">
-                <img :src="closeImage" alt="" draggable="false" />
-              </span>
-            </button>
 
             <p class="catalog-lead" aria-hidden="true">
               <span>✦</span> 完成关卡，收集专属道具 <span>✦</span>
@@ -610,8 +575,8 @@ const handleStart = () => {
                 </div>
                 <img
                   class="catalog-item-status"
-                  :src="item.obtained ? obtainedIcon : unobtainedIcon"
-                  :alt="item.obtained ? '已获得' : '未获得'"
+                  :src="item.obtained ? obtainedIcon : goObtainIcon"
+                  :alt="item.obtained ? '已获得' : '去获取'"
                   draggable="false"
                 />
               </article>
@@ -633,6 +598,24 @@ const handleStart = () => {
                   >反走私小专家</span
                 >」
               </p>
+              <div class="catalog-progress-slots" aria-label="已收集的专属道具">
+                <div
+                  v-for="(item, index) in catalogItems"
+                  :key="item.id"
+                  class="catalog-progress-slot"
+                  :class="[
+                    `catalog-progress-slot--${index + 1}`,
+                    `catalog-progress-slot--${item.id}`,
+                  ]"
+                >
+                  <img
+                    v-if="item.obtained"
+                    :src="item.image"
+                    :alt="`已收集${item.name}`"
+                    draggable="false"
+                  />
+                </div>
+              </div>
             </div>
 
             <button class="catalog-ok" type="button" aria-label="我知道了" @click="closeCatalog">
@@ -1062,7 +1045,6 @@ video {
   white-space: nowrap;
 }
 
-.dialog-close,
 .dialog-ok {
   position: absolute;
   z-index: 3;
@@ -1075,36 +1057,13 @@ video {
   touch-action: manipulation;
 }
 
-.dialog-close:focus-visible,
 .dialog-ok:focus-visible {
   outline: clamp(2px, 0.55vw, 5px) solid #fff;
   outline-offset: 2px;
 }
 
-.dialog-close:active,
 .dialog-ok:active {
   transform: scale(0.95);
-}
-
-.dialog-close {
-  top: 8.2%;
-  right: 5.2%;
-  width: 13.5%;
-  aspect-ratio: 380 / 397;
-  border-radius: 50%;
-}
-
-.close-art {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-/* close.png: 1024×1536, visible pixels: 380×397 at (324, 533) */
-.close-art img {
-  top: -134.257%;
-  left: -85.263%;
-  width: 269.474%;
 }
 
 .rule-copy {
@@ -1259,7 +1218,6 @@ video {
   pointer-events: none;
 }
 
-.level-intro-close,
 .level-intro-ok {
   position: absolute;
   z-index: 5;
@@ -1272,21 +1230,11 @@ video {
   touch-action: manipulation;
 }
 
-.level-intro-close {
-  top: 5.4%;
-  right: 1.2%;
-  width: 14.5%;
-  aspect-ratio: 380 / 397;
-  border-radius: 50%;
-}
-
-.level-intro-close:focus-visible,
 .level-intro-ok:focus-visible {
   outline: clamp(2px, 0.55vw, 5px) solid #FFF;
   outline-offset: 2px;
 }
 
-.level-intro-close:active,
 .level-intro-ok:active {
   transform: scale(0.95);
 }
@@ -1478,7 +1426,6 @@ video {
   pointer-events: none;
 }
 
-.tips-close,
 .tips-ok {
   position: absolute;
   z-index: 5;
@@ -1491,21 +1438,11 @@ video {
   touch-action: manipulation;
 }
 
-.tips-close {
-  top: 5.2%;
-  right: 0.5%;
-  width: 14.5%;
-  aspect-ratio: 380 / 397;
-  border-radius: 50%;
-}
-
-.tips-close:focus-visible,
 .tips-ok:focus-visible {
   outline: clamp(2px, 0.55vw, 5px) solid #FFF;
   outline-offset: 2px;
 }
 
-.tips-close:active,
 .tips-ok:active {
   transform: scale(0.95);
 }
@@ -1628,7 +1565,6 @@ video {
   pointer-events: none;
 }
 
-.catalog-close,
 .catalog-ok {
   position: absolute;
   z-index: 4;
@@ -1641,23 +1577,13 @@ video {
   touch-action: manipulation;
 }
 
-.catalog-close:focus-visible,
 .catalog-ok:focus-visible {
   outline: clamp(2px, 0.55vw, 5px) solid #fff;
   outline-offset: 2px;
 }
 
-.catalog-close:active,
 .catalog-ok:active {
   transform: scale(0.95);
-}
-
-.catalog-close {
-  top: 14.3%;
-  right: 4.2%;
-  width: 12.5%;
-  aspect-ratio: 380 / 397;
-  border-radius: 50%;
 }
 
 .catalog-lead {
@@ -1850,6 +1776,53 @@ video {
 .catalog-progress-count strong {
   color: #ed6b15;
   font-size: 1.18em;
+}
+
+.catalog-progress-slots {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.catalog-progress-slot {
+  position: absolute;
+  top: 18.2%;
+  display: grid;
+  width: 14.4%;
+  aspect-ratio: 1;
+  place-items: center;
+}
+
+.catalog-progress-slot--1 {
+  left: 46.5%;
+}
+
+.catalog-progress-slot--2 {
+  left: 62.9%;
+}
+
+.catalog-progress-slot--3 {
+  left: 79.2%;
+}
+
+.catalog-progress-slot img {
+  display: block;
+  width: 76%;
+  height: 76%;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 0.12em 0.12em rgb(91 52 8 / 22%));
+}
+
+.catalog-progress-slot--magnifier img {
+  width: 70%;
+  height: 79%;
+}
+
+.catalog-progress-slot--whistle img {
+  width: 80%;
+  height: 72%;
 }
 
 .catalog-progress-tip {

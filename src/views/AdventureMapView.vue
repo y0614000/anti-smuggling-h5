@@ -13,7 +13,11 @@ import expertUnlockedImage from '../assets/map/anti-smuggling-expert-unlocked.pn
 import level1Image from '../assets/map/level-1-luggage-check.png'
 import level1CompletedImage from '../assets/map/level-1-luggage-check-completed.png'
 import level2Image from '../assets/map/level-2-package-identification.png'
+import level2CompletedImage from '../assets/map/level-2-package-identification-completed.png'
+import level2UnlockedImage from '../assets/map/level-2-package-identification-unlocked.png'
 import level3Image from '../assets/map/level-3-harbor-patrol-v2.png'
+import level3CompletedImage from '../assets/map/level-3-harbor-patrol-completed.png'
+import level3UnlockedImage from '../assets/map/level-3-harbor-patrol-unlocked.png'
 import routeLockImage from '../assets/map/route-lock.png'
 
 const props = withDefaults(
@@ -42,6 +46,22 @@ const expertImage = computed(() =>
 const displayedLevel1Image = computed(() =>
   props.completedLevelCount >= 1 ? level1CompletedImage : level1Image,
 )
+const isLevel2Unlocked = computed(() => props.completedLevelCount >= 1)
+const isLevel3Unlocked = computed(() => props.completedLevelCount >= 2)
+const displayedLevel2Image = computed(() => {
+  if (props.completedLevelCount >= 2) return level2CompletedImage
+  return isLevel2Unlocked.value ? level2UnlockedImage : level2Image
+})
+const displayedLevel3Image = computed(() => {
+  if (props.completedLevelCount >= 3) return level3CompletedImage
+  return isLevel3Unlocked.value ? level3UnlockedImage : level3Image
+})
+const guideText = computed(() => {
+  if (props.completedLevelCount >= 3) return '三个任务完成！\n你真棒！'
+  if (props.completedLevelCount >= 2) return '第二关完成啦！\n去挑战第三关吧！'
+  if (props.completedLevelCount >= 1) return '第一关完成啦！\n去挑战第二关吧！'
+  return '先从第一关\n行李检查开始吧！'
+})
 
 const CHARACTER_ENTER_DURATION_MS = 650
 const BUBBLE_ENTER_DURATION_MS = 280
@@ -135,9 +155,15 @@ onBeforeUnmount(() => {
       />
 
       <div class="map-level map-level--three">
-        <MapLevelCard :image="level3Image" label="第三关港口巡查" locked />
+        <MapLevelCard
+          :image="displayedLevel3Image"
+          label="第三关港口巡查"
+          :locked="!isLevel3Unlocked"
+          :interactive="false"
+        />
       </div>
       <img
+        v-if="!isLevel3Unlocked"
         class="route-lock route-lock--upper"
         :src="routeLockImage"
         alt=""
@@ -147,9 +173,15 @@ onBeforeUnmount(() => {
       />
 
       <div class="map-level map-level--two">
-        <MapLevelCard :image="level2Image" label="第二关包裹辨别" locked />
+        <MapLevelCard
+          :image="displayedLevel2Image"
+          label="第二关包裹辨别"
+          :locked="!isLevel2Unlocked"
+          :interactive="false"
+        />
       </div>
       <img
+        v-if="!isLevel2Unlocked"
         class="route-lock route-lock--lower"
         :src="routeLockImage"
         alt=""
@@ -168,7 +200,11 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="map-guide" :class="{ 'map-guide--visible': isGuideVisible }">
-        <MapGuideBubble :image="dialogBubbleImage" :start-typing="shouldTypeGuide" />
+        <MapGuideBubble
+          :image="dialogBubbleImage"
+          :text="guideText"
+          :start-typing="shouldTypeGuide"
+        />
       </div>
       <img
         class="map-character"
