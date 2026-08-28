@@ -17,6 +17,12 @@ const Level1View = defineAsyncComponent({
   timeout: 10_000,
 })
 
+const Level2View = defineAsyncComponent({
+  loader: () => import('./views/Level2View.vue'),
+  delay: 80,
+  timeout: 10_000,
+})
+
 const LEVEL_PROGRESS_STORAGE_KEY = 'anti-smuggling-h5:completed-level-count'
 
 const readCompletedLevelCount = () => {
@@ -36,6 +42,7 @@ const hasCompletedSummonGuide = ref(currentHash.value === '#/adventure-map')
 const completedLevelCount = ref(readCompletedLevelCount())
 const isMapPage = computed(() => currentHash.value === '#/adventure-map')
 const isLevel1Page = computed(() => currentHash.value === '#/level/1')
+const isLevel2Page = computed(() => currentHash.value === '#/level/2')
 const {
   isMusicPlaying,
   musicButtonLabel,
@@ -48,7 +55,7 @@ const {
 } = useGameAudio()
 
 const getMusicTrackForHash = (hash: string): GameMusicTrack =>
-  hash === '#/level/1' ? 'level1' : 'home-map'
+  hash === '#/level/1' || hash === '#/level/2' ? 'level1' : 'home-map'
 
 setMusicTrack(getMusicTrackForHash(currentHash.value))
 
@@ -72,11 +79,24 @@ const leaveAdventureMap = () => {
 }
 
 const openLevel = (level: number) => {
-  if (level !== 1) return
+  if (level !== 1 && level !== 2) return
 
   setMusicTrack('level1')
   startMusicFromUserGesture()
-  window.location.hash = '/level/1'
+  window.location.hash = `/level/${level}`
+}
+
+const AVAILABLE_LEVELS = new Set([1, 2])
+
+const acquireLevelItem = (level: number) => {
+  const isLevelUnlocked = level <= completedLevelCount.value + 1
+
+  if (isLevelUnlocked && AVAILABLE_LEVELS.has(level)) {
+    openLevel(level)
+    return
+  }
+
+  openAdventureMap()
 }
 
 const leaveLevel = () => {
@@ -87,6 +107,16 @@ const leaveLevel = () => {
 
 const completeLevel1 = () => {
   completedLevelCount.value = Math.max(completedLevelCount.value, 1)
+  try {
+    window.localStorage.setItem(LEVEL_PROGRESS_STORAGE_KEY, String(completedLevelCount.value))
+  } catch {
+    // 某些内嵌 WebView 会禁用持久化；本次会话内的完成状态仍然保留。
+  }
+  leaveLevel()
+}
+
+const completeLevel2 = () => {
+  completedLevelCount.value = Math.max(completedLevelCount.value, 2)
   try {
     window.localStorage.setItem(LEVEL_PROGRESS_STORAGE_KEY, String(completedLevelCount.value))
   } catch {
@@ -114,11 +144,20 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncRoute))
     @countdown-stop="stopCountdownSound"
     @success="playSuccessSound"
   />
+  <Level2View
+    v-else-if="isLevel2Page"
+    @back="leaveLevel"
+    @complete="completeLevel2"
+    @countdown="playCountdownSound"
+    @countdown-stop="stopCountdownSound"
+    @success="playSuccessSound"
+  />
   <HomeView
     v-else
     :completed-level-count="completedLevelCount"
     :is-summoned="hasCompletedSummonGuide"
     @audio-unlock="startMusicFromUserGesture"
+    @acquire-level-item="acquireLevelItem"
     @start="openAdventureMap"
   />
   <GameMusicControl

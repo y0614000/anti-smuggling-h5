@@ -46,6 +46,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'audio-unlock': []
+  'acquire-level-item': [level: number]
   start: []
 }>()
 
@@ -137,6 +138,7 @@ const levelIntroItems = [
 
 const catalogItemDefinitions = [
   {
+    level: 1,
     id: 'magnifier',
     name: '侦查放大镜',
     sourcePrefix: '通过第一关「',
@@ -146,6 +148,7 @@ const catalogItemDefinitions = [
     image: magnifierImage,
   },
   {
+    level: 2,
     id: 'badge',
     name: '知识徽章',
     sourcePrefix: '通过第二关「',
@@ -155,6 +158,7 @@ const catalogItemDefinitions = [
     image: knowledgeBadgeImage,
   },
   {
+    level: 3,
     id: 'whistle',
     name: '巡查小哨子',
     sourcePrefix: '通过第三关「',
@@ -172,6 +176,14 @@ const catalogItems = computed(() =>
   })),
 )
 const collectedCount = computed(() => Math.min(3, Math.max(0, props.completedLevelCount)))
+
+const acquireCatalogItem = (level: number, obtained: boolean) => {
+  if (obtained) return
+
+  emit('audio-unlock')
+  isCatalogOpen.value = false
+  emit('acquire-level-item', level)
+}
 
 const summonCharacter = () => {
   emit('audio-unlock')
@@ -574,11 +586,21 @@ const handleStart = () => {
                   <p>{{ item.description }}</p>
                 </div>
                 <img
+                  v-if="item.obtained"
                   class="catalog-item-status"
-                  :src="item.obtained ? obtainedIcon : goObtainIcon"
-                  :alt="item.obtained ? '已获得' : '去获取'"
+                  :src="obtainedIcon"
+                  alt="已获得"
                   draggable="false"
                 />
+                <button
+                  v-else
+                  class="catalog-item-status catalog-item-status--action"
+                  type="button"
+                  :aria-label="`去${item.name}对应的第${item.level}关获得道具`"
+                  @click="acquireCatalogItem(item.level, item.obtained)"
+                >
+                  <img :src="goObtainIcon" alt="去获得" draggable="false" />
+                </button>
               </article>
             </div>
 
@@ -771,7 +793,7 @@ video {
 
 /* nav-activity-rules.png: 1254×1254, visible pixels: 1063×1164 at (96, 39) */
 .rules {
-  top: 18.05%;
+  top: 13.05%;
   left: 1.2%;
   width: 14.15%;
   aspect-ratio: 1063 / 1164;
@@ -785,7 +807,7 @@ video {
 
 /* nav-level-intro.png: 1254×1254, visible pixels: 1092×1110 at (85, 69) */
 .levels {
-  top: 18.05%;
+  top: 13.05%;
   right: 1.2%;
   width: 13.85%;
   aspect-ratio: 1092 / 1110;
@@ -799,8 +821,8 @@ video {
 
 /* nav-item-catalog.png: 1254×1254, visible pixels: 1052×1088 at (101, 85) */
 .props {
-  top: 26.55%;
-  left: 1.25%;
+  top: 23.55%;
+  right: 1.25%;
   width: 14.1%;
   aspect-ratio: 1052 / 1088;
 }
@@ -813,8 +835,8 @@ video {
 
 /* nav-smuggling-tips.png: 1254×1254, visible pixels: 1165×1194 at (42, 22) */
 .tips {
-  top: 26.35%;
-  right: 1.25%;
+  top: 23.35%;
+  left: 1.25%;
   width: 14.1%;
   aspect-ratio: 1165 / 1194;
 }
@@ -1729,6 +1751,35 @@ video {
   width: 18.5%;
   height: auto;
   pointer-events: none;
+}
+
+.catalog-item-status--action {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.catalog-item-status--action img {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+}
+
+.catalog-item-status--action:focus-visible {
+  border-radius: 18%;
+  outline: clamp(2px, 0.45vw, 3px) solid #fff;
+  outline-offset: 2px;
+}
+
+.catalog-item-status--action:active {
+  transform: scale(0.96);
 }
 
 .catalog-progress {

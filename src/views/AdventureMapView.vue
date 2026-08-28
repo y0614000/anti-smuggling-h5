@@ -177,7 +177,8 @@ onBeforeUnmount(() => {
           :image="displayedLevel2Image"
           label="第二关包裹辨别"
           :locked="!isLevel2Unlocked"
-          :interactive="false"
+          :interactive="isLevel2Unlocked"
+          @select="emit('selectLevel', 2)"
         />
       </div>
       <img

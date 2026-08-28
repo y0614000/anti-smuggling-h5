@@ -1,0 +1,10 @@
+/*
+ * Keep the game UI on its designed type scale. WeChat's built-in font-size
+ * preference otherwise enlarges text without enlarging the image-based panels.
+ */
+html,
+body,
+#app {
+  -webkit-text-size-adjust: 100% !important;
+  text-size-adjust: 100% !important;
+}
