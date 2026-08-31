@@ -38,3 +38,4 @@ __screenshots__/
 # Vite
 *.timestamp-*-*.mjs
 anti-smuggling-h5-deploy-*.zip
+release/*.zip
