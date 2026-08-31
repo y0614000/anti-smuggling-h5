@@ -54,11 +54,11 @@ defineProps<{
 }
 
 .level2-hud__inspected {
-  left: 25.5%;
+  left: 23.5%;
 }
 
 .level2-hud__abnormal {
-  left: 61.8%;
+  left: 58.8%;
 }
 
 .level2-hud__time {

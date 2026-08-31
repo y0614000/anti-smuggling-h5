@@ -121,6 +121,7 @@ const emit = defineEmits<{
   font-size: clamp(11px, 3.2vw, 17px);
   font-weight: 750;
   text-wrap: balance;
+  white-space: pre-line;
 }
 
 .level2-lecturer-feedback__content small {

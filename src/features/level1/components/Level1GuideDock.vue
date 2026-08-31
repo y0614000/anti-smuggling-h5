@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   bubbleImage: string
   mascotImage: string
   hintButtonImage: string
@@ -10,7 +10,12 @@ const props = defineProps<{
   hintsRemaining: number
   startSequence: boolean
   revealKey: number
-}>()
+  showHint?: boolean
+  mascotAlt?: string
+}>(), {
+  showHint: true,
+  mascotAlt: '国门小卫士正在提供操作提示',
+})
 
 const emit = defineEmits<{
   hint: []
@@ -160,6 +165,7 @@ onBeforeUnmount(() => {
     </div>
 
     <button
+      v-if="showHint"
       class="guide-dock__hint"
       type="button"
       aria-label="获取提示"
@@ -174,7 +180,7 @@ onBeforeUnmount(() => {
       class="guide-dock__mascot"
       :class="{ 'guide-dock__mascot--visible': isMascotVisible }"
       :src="mascotImage"
-      alt="国门小卫士正在引导行李检查"
+      :alt="mascotAlt"
       decoding="async"
       draggable="false"
     />

@@ -16,6 +16,7 @@ export interface Level2Package {
   quantity: string
   xrayResult: string
   judgment: PackageJudgment
+  retryPoint?: string
   educationPoint: string
 }
 

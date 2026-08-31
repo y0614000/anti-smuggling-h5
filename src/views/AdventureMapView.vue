@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 
 import MapGuideBubble from '../components/map/MapGuideBubble.vue'
 import MapLevelCard from '../components/map/MapLevelCard.vue'
+import MemoirPlaceholder from '../components/map/MemoirPlaceholder.vue'
 import characterImage from '../assets/images/ip-opening-static.webp'
 import headerImage from '../assets/map/adventure-map-header.png'
 import backgroundImage from '../assets/map/anti-smuggling-adventure-map-background.png'
@@ -39,6 +40,7 @@ const isCharacterReady = ref(false)
 const isCharacterVisible = ref(false)
 const isGuideVisible = ref(false)
 const shouldTypeGuide = ref(false)
+const isMemoirOpen = ref(false)
 const isExpertUnlocked = computed(() => props.completedLevelCount >= 3)
 const expertImage = computed(() =>
   isExpertUnlocked.value ? expertUnlockedImage : expertLockedImage,
@@ -57,7 +59,7 @@ const displayedLevel3Image = computed(() => {
   return isLevel3Unlocked.value ? level3UnlockedImage : level3Image
 })
 const guideText = computed(() => {
-  if (props.completedLevelCount >= 3) return '三个任务完成！\n你真棒！'
+  if (props.completedLevelCount >= 3) return '小专家已解锁！\n点击查看回忆录吧！'
   if (props.completedLevelCount >= 2) return '第二关完成啦！\n去挑战第三关吧！'
   if (props.completedLevelCount >= 1) return '第一关完成啦！\n去挑战第二关吧！'
   return '先从第一关\n行李检查开始吧！'
@@ -105,6 +107,11 @@ const revealCharacter = () => {
   startGuideSequence()
 }
 
+const openMemoir = () => {
+  if (!isExpertUnlocked.value) return
+  isMemoirOpen.value = true
+}
+
 onBeforeUnmount(() => {
   sequenceTimers.forEach((timer) => clearTimeout(timer))
 
@@ -146,20 +153,24 @@ onBeforeUnmount(() => {
         <img :src="backButtonImage" alt="" draggable="false" />
       </button>
 
-      <img
-        class="map-expert"
-        :src="expertImage"
-        :alt="isExpertUnlocked ? '反走私小专家，已解锁' : '反走私小专家，集齐3个道具解锁'"
-        decoding="async"
-        draggable="false"
-      />
+      <button
+        class="map-expert-action"
+        :class="{ 'map-expert-action--unlocked': isExpertUnlocked }"
+        type="button"
+        :disabled="!isExpertUnlocked"
+        :aria-label="isExpertUnlocked ? '打开反走私小专家回忆录' : '集齐3个道具解锁反走私小专家'"
+        @click="openMemoir"
+      >
+        <img class="map-expert" :src="expertImage" alt="" decoding="async" draggable="false" />
+      </button>
 
       <div class="map-level map-level--three">
         <MapLevelCard
           :image="displayedLevel3Image"
           label="第三关港口巡查"
           :locked="!isLevel3Unlocked"
-          :interactive="false"
+          :interactive="isLevel3Unlocked"
+          @select="emit('selectLevel', 3)"
         />
       </div>
       <img
@@ -219,6 +230,7 @@ onBeforeUnmount(() => {
         @error="revealCharacter"
       />
     </section>
+    <MemoirPlaceholder :open="isMemoirOpen" @close="isMemoirOpen = false" />
   </main>
 </template>
 
@@ -351,17 +363,47 @@ onBeforeUnmount(() => {
   transform: scale(0.94);
 }
 
-.map-expert {
+.map-expert-action {
   position: absolute;
   top: 15.8%;
   right: -1.2%;
   z-index: 2;
   display: block;
   width: 42%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  appearance: none;
+  touch-action: manipulation;
+}
+
+.map-expert-action:disabled {
+  opacity: 1;
+}
+
+.map-expert-action--unlocked {
+  z-index: 4;
+  cursor: pointer;
+}
+
+.map-expert {
+  display: block;
+  width: 100%;
   height: auto;
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
+}
+
+.map-expert-action--unlocked:active {
+  transform: scale(0.97);
+}
+
+.map-expert-action--unlocked:focus-visible {
+  border-radius: 1rem;
+  outline: clamp(2px, 0.6vw, 4px) solid #fff;
+  outline-offset: 2px;
 }
 
 .map-level {
@@ -451,6 +493,10 @@ onBeforeUnmount(() => {
 
   .map-back {
     transition: transform 100ms ease, box-shadow 100ms ease;
+  }
+
+  .map-expert-action--unlocked {
+    transition: transform 120ms ease;
   }
 
   .map-character {

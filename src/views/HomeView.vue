@@ -124,14 +124,14 @@ const levelIntroItems = [
     id: 'parcel',
     step: '第二关',
     name: '包裹辨别',
-    description: ['识别包裹来源信息', '辨别异常和违禁物品'],
+    description: ['扫描查验6个包裹', '找出并上报3个异常包裹'],
     image: levelIntroParcelImage,
   },
   {
     id: 'harbor',
     step: '第三关',
     name: '港口巡查',
-    description: ['巡查港口重点区域', '及时发现并报告线索'],
+    description: ['滑动巡查8个场景', '找出并报告5起可疑行为'],
     image: levelIntroHarborImage,
   },
 ] as const
@@ -144,7 +144,7 @@ const catalogItemDefinitions = [
     sourcePrefix: '通过第一关「',
     sourceHighlight: '行李检查',
     sourceSuffix: '」获得',
-    description: '发现隐藏的可疑线索',
+    description: '检查行李并发现可疑物品',
     image: magnifierImage,
   },
   {
@@ -154,7 +154,7 @@ const catalogItemDefinitions = [
     sourcePrefix: '通过第二关「',
     sourceHighlight: '包裹辨别',
     sourceSuffix: '」获得',
-    description: '辨别来源不明和异常物品',
+    description: '辨别并上报异常包裹',
     image: knowledgeBadgeImage,
   },
   {
@@ -164,7 +164,7 @@ const catalogItemDefinitions = [
     sourcePrefix: '通过第三关「',
     sourceHighlight: '港口巡查',
     sourceSuffix: '」获得',
-    description: '发现线索及时提醒报告',
+    description: '巡查并报告可疑行为',
     image: whistleImage,
   },
 ] as const
@@ -463,7 +463,7 @@ const handleStart = () => {
                 :key="item.id"
                 class="level-intro-card"
               >
-                <span class="level-intro-index" aria-hidden="true">{{ index + 1 }}</span>
+                <!-- <span class="level-intro-index" aria-hidden="true">{{ index + 1 }}</span> -->
                 <img
                   class="level-intro-illustration"
                   :class="`level-intro-illustration--${item.id}`"
@@ -1334,8 +1334,8 @@ video {
   left: 5.5%;
   z-index: 2;
   display: block;
-  width: 34%;
-  height: 90%;
+  /* width: 34%; */
+  height: 99%;
   object-fit: contain;
   pointer-events: none;
   filter: drop-shadow(0 0.3em 0.22em rgb(95 56 17 / 18%));

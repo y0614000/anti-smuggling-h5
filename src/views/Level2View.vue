@@ -96,6 +96,11 @@ const isLecturerJudgmentCorrect = computed(() =>
 const lecturerFeedbackTitle = computed(() =>
   isLecturerJudgmentCorrect.value ? '判断正确！' : '再比对一下'
 )
+const lecturerFeedbackMessage = computed(() =>
+  isLecturerJudgmentCorrect.value
+    ? currentPackage.value.educationPoint
+    : (currentPackage.value.retryPoint ?? currentPackage.value.educationPoint),
+)
 const lecturerContinueLabel = computed(() => {
   if (state.status === 'success') return '点击黑板查看结果'
   return isLecturerJudgmentCorrect.value
@@ -243,7 +248,6 @@ onBeforeUnmount(() => {
         <div>
           <strong>{{ currentPackage.number }}号包裹</strong>
           <p><span>申报：</span>{{ currentPackage.declaration }}</p>
-          <p><span>数量：</span>{{ currentPackage.quantity }}</p>
         </div>
       </section>
 
@@ -315,7 +319,7 @@ onBeforeUnmount(() => {
         :chalkboard-image="level2Assets.lecturerChalkboard"
         :lecturer-image="level2Assets.lecturerMascot"
         :title="lecturerFeedbackTitle"
-        :message="currentPackage.educationPoint"
+        :message="lecturerFeedbackMessage"
         :continue-label="lecturerContinueLabel"
         @continue="handleLecturerContinue"
       />
@@ -406,8 +410,8 @@ onBeforeUnmount(() => {
 .level2-header button {
   position: absolute;
   top: calc(1.8% + env(safe-area-inset-top, 0px));
-  left: max(2.2%, env(safe-area-inset-left, 0px));
-  width: 12.5%;
+  left: max(3.5%, env(safe-area-inset-left, 0px));
+  width: 10.5%;
   aspect-ratio: 1;
   margin: 0;
   padding: 0;
@@ -426,10 +430,8 @@ onBeforeUnmount(() => {
   display: block;
   width: 100%;
   height: 100%;
-  border-radius: 50%;
   object-fit: cover;
-  transform: scale(1.08);
-  clip-path: circle(48% at 50% 50%);
+  pointer-events: none;
 }
 
 .level2-header button:active {
@@ -437,7 +439,7 @@ onBeforeUnmount(() => {
 }
 
 .level2-header button:focus-visible {
-  outline: 3px solid #fff;
+  outline: clamp(2px, 0.6vw, 4px) solid #fff;
   outline-offset: 2px;
 }
 

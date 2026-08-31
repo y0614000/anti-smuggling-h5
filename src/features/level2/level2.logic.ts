@@ -59,7 +59,7 @@ export const judgeLevel2Package = (
       state: {
         ...state,
         status: 'feedback',
-        guideMessage: `再比对一下：\n${packageItem.educationPoint}`,
+        guideMessage: `再比对一下：\n${packageItem.retryPoint ?? packageItem.educationPoint}`,
       },
     }
   }

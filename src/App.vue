@@ -23,6 +23,12 @@ const Level2View = defineAsyncComponent({
   timeout: 10_000,
 })
 
+const Level3View = defineAsyncComponent({
+  loader: () => import('./views/Level3View.vue'),
+  delay: 80,
+  timeout: 10_000,
+})
+
 const LEVEL_PROGRESS_STORAGE_KEY = 'anti-smuggling-h5:completed-level-count'
 
 const readCompletedLevelCount = () => {
@@ -43,6 +49,7 @@ const completedLevelCount = ref(readCompletedLevelCount())
 const isMapPage = computed(() => currentHash.value === '#/adventure-map')
 const isLevel1Page = computed(() => currentHash.value === '#/level/1')
 const isLevel2Page = computed(() => currentHash.value === '#/level/2')
+const isLevel3Page = computed(() => currentHash.value === '#/level/3')
 const {
   isMusicPlaying,
   musicButtonLabel,
@@ -55,7 +62,9 @@ const {
 } = useGameAudio()
 
 const getMusicTrackForHash = (hash: string): GameMusicTrack =>
-  hash === '#/level/1' || hash === '#/level/2' ? 'level1' : 'home-map'
+  hash === '#/level/1' || hash === '#/level/2' || hash === '#/level/3'
+    ? 'level1'
+    : 'home-map'
 
 setMusicTrack(getMusicTrackForHash(currentHash.value))
 
@@ -79,14 +88,14 @@ const leaveAdventureMap = () => {
 }
 
 const openLevel = (level: number) => {
-  if (level !== 1 && level !== 2) return
+  if (level !== 1 && level !== 2 && level !== 3) return
 
   setMusicTrack('level1')
   startMusicFromUserGesture()
   window.location.hash = `/level/${level}`
 }
 
-const AVAILABLE_LEVELS = new Set([1, 2])
+const AVAILABLE_LEVELS = new Set([1, 2, 3])
 
 const acquireLevelItem = (level: number) => {
   const isLevelUnlocked = level <= completedLevelCount.value + 1
@@ -125,6 +134,16 @@ const completeLevel2 = () => {
   leaveLevel()
 }
 
+const completeLevel3 = () => {
+  completedLevelCount.value = Math.max(completedLevelCount.value, 3)
+  try {
+    window.localStorage.setItem(LEVEL_PROGRESS_STORAGE_KEY, String(completedLevelCount.value))
+  } catch {
+    // 某些内嵌 WebView 会禁用持久化；本次会话内的完成状态仍然保留。
+  }
+  leaveLevel()
+}
+
 onMounted(() => window.addEventListener('hashchange', syncRoute))
 onBeforeUnmount(() => window.removeEventListener('hashchange', syncRoute))
 </script>
@@ -148,6 +167,14 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncRoute))
     v-else-if="isLevel2Page"
     @back="leaveLevel"
     @complete="completeLevel2"
+    @countdown="playCountdownSound"
+    @countdown-stop="stopCountdownSound"
+    @success="playSuccessSound"
+  />
+  <Level3View
+    v-else-if="isLevel3Page"
+    @back="leaveLevel"
+    @complete="completeLevel3"
     @countdown="playCountdownSound"
     @countdown-stop="stopCountdownSound"
     @success="playSuccessSound"
