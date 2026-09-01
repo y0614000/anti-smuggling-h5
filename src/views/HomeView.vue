@@ -413,7 +413,7 @@ const handleStart = () => {
                 </li>
                 <li>遇到可疑物品时，请认真观察并选择正确的处理方式；回答错误可根据提示重新挑战。</li>
                 <li>
-                  完成全部关卡后，可解锁<span class="highlight">“反走私小专家”</span>荣誉页面。
+                  完成全部关卡后，可解锁<span class="highlight">“反走私小专家”</span>荣誉，点击进入专属成长回忆录。
                 </li>
               </ol>
             </div>
@@ -1263,7 +1263,7 @@ video {
 
 .level-intro-lead {
   position: absolute;
-  top: 17.5%;
+  top: 19.5%;
   left: 7%;
   z-index: 2;
   width: 86%;

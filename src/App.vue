@@ -11,6 +11,12 @@ const AdventureMapView = defineAsyncComponent({
   timeout: 10_000,
 })
 
+const MemoirView = defineAsyncComponent({
+  loader: () => import('./views/MemoirView.vue'),
+  delay: 80,
+  timeout: 10_000,
+})
+
 const Level1View = defineAsyncComponent({
   loader: () => import('./views/Level1View.vue'),
   delay: 80,
@@ -47,6 +53,7 @@ const currentHash = ref(window.location.hash)
 const hasCompletedSummonGuide = ref(currentHash.value === '#/adventure-map')
 const completedLevelCount = ref(readCompletedLevelCount())
 const isMapPage = computed(() => currentHash.value === '#/adventure-map')
+const isMemoirPage = computed(() => currentHash.value === '#/memoir')
 const isLevel1Page = computed(() => currentHash.value === '#/level/1')
 const isLevel2Page = computed(() => currentHash.value === '#/level/2')
 const isLevel3Page = computed(() => currentHash.value === '#/level/3')
@@ -85,6 +92,19 @@ const leaveAdventureMap = () => {
   startMusicFromUserGesture()
   hasCompletedSummonGuide.value = true
   window.location.hash = '/'
+}
+
+const openMemoir = () => {
+  setMusicTrack('home-map')
+  startMusicFromUserGesture()
+  window.location.hash = '/memoir'
+}
+
+const leaveMemoir = () => {
+  setMusicTrack('home-map')
+  startMusicFromUserGesture()
+  hasCompletedSummonGuide.value = true
+  window.location.hash = '/adventure-map'
 }
 
 const openLevel = (level: number) => {
@@ -153,8 +173,10 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncRoute))
     v-if="isMapPage"
     :completed-level-count="completedLevelCount"
     @back="leaveAdventureMap"
+    @open-memoir="openMemoir"
     @select-level="openLevel"
   />
+  <MemoirView v-else-if="isMemoirPage" @back="leaveMemoir" />
   <Level1View
     v-else-if="isLevel1Page"
     @back="leaveLevel"

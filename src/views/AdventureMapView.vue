@@ -3,7 +3,6 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 
 import MapGuideBubble from '../components/map/MapGuideBubble.vue'
 import MapLevelCard from '../components/map/MapLevelCard.vue'
-import MemoirPlaceholder from '../components/map/MemoirPlaceholder.vue'
 import characterImage from '../assets/images/ip-opening-static.webp'
 import headerImage from '../assets/map/adventure-map-header.png'
 import backgroundImage from '../assets/map/anti-smuggling-adventure-map-background.png'
@@ -32,6 +31,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   back: []
+  openMemoir: []
   selectLevel: [level: number]
 }>()
 
@@ -40,7 +40,6 @@ const isCharacterReady = ref(false)
 const isCharacterVisible = ref(false)
 const isGuideVisible = ref(false)
 const shouldTypeGuide = ref(false)
-const isMemoirOpen = ref(false)
 const isExpertUnlocked = computed(() => props.completedLevelCount >= 3)
 const expertImage = computed(() =>
   isExpertUnlocked.value ? expertUnlockedImage : expertLockedImage,
@@ -109,7 +108,7 @@ const revealCharacter = () => {
 
 const openMemoir = () => {
   if (!isExpertUnlocked.value) return
-  isMemoirOpen.value = true
+  emit('openMemoir')
 }
 
 onBeforeUnmount(() => {
@@ -230,7 +229,6 @@ onBeforeUnmount(() => {
         @error="revealCharacter"
       />
     </section>
-    <MemoirPlaceholder :open="isMemoirOpen" @close="isMemoirOpen = false" />
   </main>
 </template>
 
