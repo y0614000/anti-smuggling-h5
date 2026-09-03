@@ -207,6 +207,7 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncRoute))
     :is-summoned="hasCompletedSummonGuide"
     @audio-unlock="startMusicFromUserGesture"
     @acquire-level-item="acquireLevelItem"
+    @open-memoir="openMemoir"
     @start="openAdventureMap"
   />
   <GameMusicControl

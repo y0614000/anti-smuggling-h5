@@ -14,6 +14,7 @@ import levelIntroHarborImage from '../assets/images/level-intro-harbor.png'
 import levelIntroModalBackgroundImage from '../assets/images/level-intro-modal-bg-transparent.png'
 import levelIntroParcelImage from '../assets/images/level-intro-parcel.png'
 import levelIntroSuitcaseImage from '../assets/images/level-intro-suitcase.png'
+import memoirEntryButtonBackgroundImage from '../assets/images/memoir-entry-button-bg.png'
 import levelImage from '../assets/images/nav-level-intro.png'
 import propImage from '../assets/images/nav-item-catalog.png'
 import ruleImage from '../assets/images/nav-activity-rules.png'
@@ -22,6 +23,7 @@ import obtainedIcon from '../assets/images/obtained-icon-final.png'
 import goObtainIcon from '../assets/images/go-obtain-icon-blue-final.png'
 import okImage from '../assets/images/ok.png'
 import progressCardBackgroundImage from '../assets/images/progress-card-bg.png'
+import replayButtonBackgroundImage from '../assets/images/replay-button-bg.png'
 import knowledgeBadgeImage from '../assets/images/prop-knowledge-badge.png'
 import magnifierImage from '../assets/images/prop-magnifier.png'
 import whistleImage from '../assets/images/prop-whistle.png'
@@ -47,6 +49,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   'audio-unlock': []
   'acquire-level-item': [level: number]
+  'open-memoir': []
   start: []
 }>()
 
@@ -176,6 +179,7 @@ const catalogItems = computed(() =>
   })),
 )
 const collectedCount = computed(() => Math.min(3, Math.max(0, props.completedLevelCount)))
+const hasCompletedAllLevels = computed(() => props.completedLevelCount >= 3)
 
 const acquireCatalogItem = (level: number, obtained: boolean) => {
   if (obtained) return
@@ -270,6 +274,11 @@ const closeTips = async () => {
 const handleStart = () => {
   emit('audio-unlock')
   emit('start')
+}
+
+const handleOpenMemoir = () => {
+  emit('audio-unlock')
+  emit('open-memoir')
 }
 </script>
 
@@ -379,11 +388,39 @@ const handleStart = () => {
         draggable="false"
       />
 
-      <button class="start-button" type="button" aria-label="开始冒险" @click="handleStart">
+      <button
+        v-if="!hasCompletedAllLevels"
+        class="start-button"
+        type="button"
+        aria-label="开始冒险"
+        @click="handleStart"
+      >
         <span class="sprite start-art" aria-hidden="true">
           <img :src="startImage" alt="" draggable="false" />
         </span>
       </button>
+
+      <div v-else class="completion-actions" aria-label="通关后操作">
+        <button
+          class="completion-action memoir-entry-button"
+          type="button"
+          aria-label="查看成长回忆录"
+          @click="handleOpenMemoir"
+        >
+          <img :src="memoirEntryButtonBackgroundImage" alt="" draggable="false" />
+          <span>查看成长回忆录</span>
+        </button>
+
+        <button
+          class="completion-action replay-button"
+          type="button"
+          aria-label="再次冒险"
+          @click="handleStart"
+        >
+          <img :src="replayButtonBackgroundImage" alt="" draggable="false" />
+          <span>再次冒险</span>
+        </button>
+      </div>
 
       <Transition name="rule-modal">
         <div v-if="isRuleOpen" class="rule-overlay">
@@ -1008,9 +1045,99 @@ video {
   width: 120.898%;
 }
 
+.completion-actions {
+  position: absolute;
+  top: 74%;
+  left: 19%;
+  z-index: 6;
+  display: flex;
+  width: 62%;
+  flex-direction: column;
+  align-items: center;
+}
+
+.completion-action {
+  position: relative;
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fffdf4;
+  cursor: pointer;
+  appearance: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.completion-action img {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+}
+
+.completion-action span {
+  position: absolute;
+  top: 46%;
+  z-index: 1;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.completion-action:focus-visible {
+  border-radius: 999px;
+  outline: clamp(2px, 0.6vw, 5px) solid #fff;
+  outline-offset: clamp(1px, 0.45vw, 4px);
+}
+
+.completion-action:active {
+  transform: scale(0.97);
+}
+
+.memoir-entry-button {
+  width: 100%;
+  filter: drop-shadow(0 0.45em 0.45em rgb(40 58 86 / 22%));
+}
+
+.memoir-entry-button span {
+  right: 7%;
+  left: 19%;
+  font-size: clamp(14px, 4.5vw, 29px);
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-shadow:
+    0 0.1em 0 #0752a9,
+    0 0.16em 0.2em rgb(0 31 90 / 55%);
+}
+
+.replay-button {
+  width: 68%;
+  margin-top: -2.5%;
+  filter: drop-shadow(0 0.35em 0.35em rgb(91 47 8 / 20%));
+}
+
+.replay-button span {
+  right: 10%;
+  left: 10%;
+  font-size: clamp(12px, 3.9vw, 25px);
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-shadow:
+    0 0.09em 0 #d74c14,
+    0 0.15em 0.18em rgb(113 40 5 / 52%);
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .start-button {
     animation: button-breathe 2.4s ease-in-out infinite;
+  }
+
+  .memoir-entry-button {
+    animation: button-breathe 2.2s ease-in-out infinite;
   }
 }
 

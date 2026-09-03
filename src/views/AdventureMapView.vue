@@ -9,6 +9,7 @@ import backgroundImage from '../assets/map/anti-smuggling-adventure-map-backgrou
 import backButtonImage from '../assets/map/back-button-transparent.png'
 import dialogBubbleImage from '../assets/map/dialog-bubble.png'
 import expertLockedImage from '../assets/map/anti-smuggling-expert-locked.png'
+import expertTapHandImage from '../assets/map/expert-tap-hand.png'
 import expertUnlockedImage from '../assets/map/anti-smuggling-expert-unlocked.png'
 import level1Image from '../assets/map/level-1-luggage-check.png'
 import level1CompletedImage from '../assets/map/level-1-luggage-check-completed.png'
@@ -40,7 +41,21 @@ const isCharacterReady = ref(false)
 const isCharacterVisible = ref(false)
 const isGuideVisible = ref(false)
 const shouldTypeGuide = ref(false)
+const MEMOIR_VISITED_STORAGE_KEY = 'anti-smuggling-h5:memoir-visited'
+
+const readMemoirVisitedState = () => {
+  if (typeof window === 'undefined') return false
+
+  try {
+    return window.localStorage.getItem(MEMOIR_VISITED_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+const hasVisitedMemoir = ref(readMemoirVisitedState())
 const isExpertUnlocked = computed(() => props.completedLevelCount >= 3)
+const showExpertTapGuide = computed(() => isExpertUnlocked.value && !hasVisitedMemoir.value)
 const expertImage = computed(() =>
   isExpertUnlocked.value ? expertUnlockedImage : expertLockedImage,
 )
@@ -108,6 +123,13 @@ const revealCharacter = () => {
 
 const openMemoir = () => {
   if (!isExpertUnlocked.value) return
+
+  hasVisitedMemoir.value = true
+  try {
+    window.localStorage.setItem(MEMOIR_VISITED_STORAGE_KEY, '1')
+  } catch {
+    // 无法使用本地存储时，本次页面停留期间仍会隐藏引导。
+  }
   emit('openMemoir')
 }
 
@@ -154,13 +176,19 @@ onBeforeUnmount(() => {
 
       <button
         class="map-expert-action"
-        :class="{ 'map-expert-action--unlocked': isExpertUnlocked }"
+        :class="{
+          'map-expert-action--unlocked': isExpertUnlocked,
+          'map-expert-action--guided': showExpertTapGuide,
+        }"
         type="button"
         :disabled="!isExpertUnlocked"
         :aria-label="isExpertUnlocked ? '打开反走私小专家回忆录' : '集齐3个道具解锁反走私小专家'"
         @click="openMemoir"
       >
         <img class="map-expert" :src="expertImage" alt="" decoding="async" draggable="false" />
+        <span v-if="showExpertTapGuide" class="map-expert-tap-guide" aria-hidden="true">
+          <img :src="expertTapHandImage" alt="" decoding="async" draggable="false" />
+        </span>
       </button>
 
       <div class="map-level map-level--three">
@@ -210,11 +238,19 @@ onBeforeUnmount(() => {
         />
       </div>
 
-      <div class="map-guide" :class="{ 'map-guide--visible': isGuideVisible }">
+      <div
+        class="map-guide"
+        :class="{
+          'map-guide--visible': isGuideVisible,
+          'map-guide--interactive': isExpertUnlocked,
+        }"
+      >
         <MapGuideBubble
           :image="dialogBubbleImage"
           :text="guideText"
           :start-typing="shouldTypeGuide"
+          :second-line-action-text="isExpertUnlocked ? '点击查看回忆录' : ''"
+          @action="openMemoir"
         />
       </div>
       <img
@@ -252,7 +288,7 @@ onBeforeUnmount(() => {
 
 .map-canvas {
   /* 三个关卡合成图的尺寸独立控制，修改对应变量不会影响其他关卡。 */
-  --level-one-width: 55.5%;
+  --level-one-width: 51.5%;
   --level-two-width: 50.4%;
   --level-three-width: 49.2%;
 
@@ -394,6 +430,44 @@ onBeforeUnmount(() => {
   -webkit-user-drag: none;
 }
 
+.map-expert-tap-guide {
+  position: absolute;
+  right: 5%;
+  bottom: -12%;
+  z-index: 2;
+  display: block;
+  width: 42%;
+  aspect-ratio: 1;
+  pointer-events: none;
+  transform-origin: 12% 12%;
+  filter: drop-shadow(0 0.35vw 0.4vw rgb(79 43 5 / 28%));
+}
+
+.map-expert-tap-guide img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.map-expert-tap-guide::before,
+.map-expert-tap-guide::after {
+  position: absolute;
+  top: 7%;
+  left: 7%;
+  z-index: -1;
+  width: 24%;
+  aspect-ratio: 1;
+  border: clamp(1px, 0.45vw, 3px) solid rgb(255 255 255 / 92%);
+  border-radius: 50%;
+  box-shadow: 0 0 0 clamp(1px, 0.3vw, 2px) rgb(78 188 247 / 58%);
+  content: "";
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.35);
+}
+
 .map-expert-action--unlocked:active {
   transform: scale(0.97);
 }
@@ -422,7 +496,7 @@ onBeforeUnmount(() => {
 }
 
 .map-level--one {
-  top: 63.4%;
+  top: 61.4%;
   left: 1.2%;
   width: var(--level-one-width);
 }
@@ -448,7 +522,7 @@ onBeforeUnmount(() => {
 
 .map-guide {
   position: absolute;
-  right: 35.5%;
+  right: 37.5%;
   bottom: 1.25%;
   z-index: 5;
   width: 35.5%;
@@ -462,6 +536,10 @@ onBeforeUnmount(() => {
 .map-guide--visible {
   opacity: 1;
   transform: translateY(0) scale(1);
+}
+
+.map-guide--visible.map-guide--interactive {
+  pointer-events: auto;
 }
 
 .map-character {
@@ -497,6 +575,22 @@ onBeforeUnmount(() => {
     transition: transform 120ms ease;
   }
 
+  .map-expert-action--guided .map-expert {
+    animation: map-expert-highlight 1.65s ease-in-out infinite;
+  }
+
+  .map-expert-tap-guide {
+    animation: map-expert-tap-hand 1.35s ease-in-out infinite;
+  }
+
+  .map-expert-tap-guide::before {
+    animation: map-expert-tap-ripple 1.35s ease-out infinite;
+  }
+
+  .map-expert-tap-guide::after {
+    animation: map-expert-tap-ripple 1.35s 0.24s ease-out infinite;
+  }
+
   .map-character {
     transition:
       transform 650ms cubic-bezier(0.2, 0.86, 0.24, 1),
@@ -509,6 +603,49 @@ onBeforeUnmount(() => {
       transform 280ms cubic-bezier(0.22, 1.2, 0.36, 1),
       opacity 180ms ease-out;
     will-change: transform, opacity;
+  }
+}
+
+@keyframes map-expert-tap-hand {
+  0%,
+  100% {
+    transform: translate(7%, 7%) scale(0.94);
+  }
+
+  42%,
+  62% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes map-expert-tap-ripple {
+  0%,
+  26% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.35);
+  }
+
+  34% {
+    opacity: 0.9;
+  }
+
+  82%,
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.65);
+  }
+}
+
+@keyframes map-expert-highlight {
+  0%,
+  100% {
+    filter: drop-shadow(0 0.3vw 0.35vw rgb(85 41 6 / 15%));
+    transform: scale(1);
+  }
+
+  50% {
+    filter: drop-shadow(0 0 1.15vw rgb(255 232 94 / 72%));
+    transform: scale(1.025);
   }
 }
 

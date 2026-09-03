@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import memoirExpertSpeakingImage from '../assets/memoir/anti-smuggling-expert-speaking.png'
 import memoirBookIcon from '../assets/memoir/book.svg'
@@ -25,6 +25,9 @@ const showScrollGuide = ref(true)
 const memoirView = ref<HTMLElement | null>(null)
 const memoirClosing = ref<HTMLElement | null>(null)
 const typedClosingText = ref('')
+const isExportingMemoir = ref(false)
+const exportMemoirError = ref('')
+const memoirPreviewUrl = ref('')
 
 const memoirClosingText = [
   '太棒啦！我已经累计完成22次商品查验和15个场景巡查，成功发现11条异常线索！',
@@ -122,6 +125,167 @@ const startTypewriter = () => {
   typeClosingText()
 }
 
+const waitForMemoirImages = async (root: HTMLElement) => {
+  await Promise.all(
+    Array.from(root.querySelectorAll('img')).map(async (image) => {
+      if (!image.complete) {
+        await new Promise<void>((resolve) => {
+          image.addEventListener('load', () => resolve(), { once: true })
+          image.addEventListener('error', () => resolve(), { once: true })
+        })
+      }
+
+      if ('decode' in image) {
+        await image.decode().catch(() => undefined)
+      }
+    }),
+  )
+}
+
+const blobToDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader()
+  reader.addEventListener('load', () => resolve(String(reader.result)), { once: true })
+  reader.addEventListener('error', () => reject(reader.error), { once: true })
+  reader.readAsDataURL(blob)
+})
+
+const closeMemoirPreview = () => {
+  memoirPreviewUrl.value = ''
+}
+
+const downloadMemoir = async () => {
+  const root = memoirView.value
+  const closing = memoirClosing.value
+  if (!root || !closing || isExportingMemoir.value) return
+
+  const originalScrollTop = root.scrollTop
+  isExportingMemoir.value = true
+  exportMemoirError.value = ''
+
+  try {
+    if (typewriterTimer) clearTimeout(typewriterTimer)
+    hasStartedTypewriter = true
+    typedClosingText.value = memoirClosingText
+
+    await nextTick()
+    await document.fonts?.ready
+    await waitForMemoirImages(root)
+
+    const bubble = closing.querySelector<HTMLElement>('.memoir-closing__bubble')
+    const expert = closing.querySelector<HTMLElement>('.memoir-closing__expert')
+    const closingContentBottom = Math.max(
+      bubble ? bubble.offsetTop + bubble.offsetHeight : 0,
+      expert ? expert.offsetTop + expert.offsetHeight : 0,
+    )
+    const exportHeight = Math.ceil(closing.offsetTop + closingContentBottom + 36)
+    const exportWidth = root.clientWidth
+    const viewportHeight = root.clientHeight
+    const maximumCanvasHeight = 8192
+    const maximumCanvasArea = 16_000_000
+    const exportScale = Math.max(
+      0.75,
+      Math.min(
+        window.devicePixelRatio || 1,
+        2,
+        maximumCanvasHeight / exportHeight,
+        Math.sqrt(maximumCanvasArea / (exportWidth * exportHeight)),
+      ),
+    )
+    const { default: html2canvas } = await import('html2canvas')
+    const finalCanvas = document.createElement('canvas')
+    finalCanvas.width = Math.ceil(exportWidth * exportScale)
+    finalCanvas.height = Math.ceil(exportHeight * exportScale)
+    const finalContext = finalCanvas.getContext('2d')
+    if (!finalContext) throw new Error('无法创建长图画布')
+
+    finalContext.fillStyle = '#fffdf6'
+    finalContext.fillRect(0, 0, finalCanvas.width, finalCanvas.height)
+
+    const finalSegmentStart = Math.max(0, exportHeight - viewportHeight)
+    const segmentStarts: number[] = []
+    for (let start = 0; start < finalSegmentStart; start += viewportHeight) {
+      segmentStarts.push(start)
+    }
+    if (segmentStarts.at(-1) !== finalSegmentStart) {
+      segmentStarts.push(finalSegmentStart)
+    }
+
+    for (const segmentStart of segmentStarts) {
+      root.scrollTop = segmentStart
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      })
+
+      const segmentCanvas = await html2canvas(root, {
+        backgroundColor: '#fffdf6',
+        height: viewportHeight,
+        scale: exportScale,
+        scrollX: 0,
+        scrollY: 0,
+        useCORS: true,
+        width: exportWidth,
+        windowHeight: viewportHeight,
+        windowWidth: exportWidth,
+        onclone: (clonedDocument) => {
+          const clonedRoot = clonedDocument.querySelector<HTMLElement>('.memoir-view')
+          if (!clonedRoot) return
+
+          clonedRoot.classList.add('is-exporting')
+          clonedRoot.scrollTop = segmentStart
+          clonedRoot.style.backgroundPosition = `-1px ${-1 - segmentStart}px`
+          clonedRoot.querySelectorAll<HTMLElement>('[data-export-hidden]').forEach((element) => {
+            element.style.display = 'none'
+          })
+        },
+      })
+      const destinationY = Math.round(segmentStart * exportScale)
+      const remainingHeight = exportHeight - segmentStart
+      const segmentHeight = Math.min(viewportHeight, remainingHeight)
+      const renderedSegmentHeight = Math.round(segmentHeight * exportScale)
+
+      finalContext.drawImage(
+        segmentCanvas,
+        0,
+        0,
+        finalCanvas.width,
+        renderedSegmentHeight,
+        0,
+        destinationY,
+        finalCanvas.width,
+        renderedSegmentHeight,
+      )
+    }
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      finalCanvas.toBlob((result) => {
+        if (result) resolve(result)
+        else reject(new Error('无法生成图片文件'))
+      }, 'image/png')
+    })
+    const userAgent = navigator.userAgent
+    const isAndroidWechat = /Android/i.test(userAgent) && /MicroMessenger/i.test(userAgent)
+    if (isAndroidWechat) {
+      memoirPreviewUrl.value = await blobToDataUrl(blob)
+      return
+    }
+
+    const downloadUrl = URL.createObjectURL(blob)
+    const downloadLink = document.createElement('a')
+    downloadLink.href = downloadUrl
+    downloadLink.download = '反走私成长回忆录.png'
+    document.body.appendChild(downloadLink)
+    downloadLink.click()
+    downloadLink.remove()
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000)
+  } catch (error) {
+    console.error('生成回忆录长图失败：', error)
+    exportMemoirError.value = '生成失败，请稍后再试'
+  } finally {
+    root.scrollTop = originalScrollTop
+    isExportingMemoir.value = false
+  }
+}
+
 const handleMemoirScroll = (event: Event) => {
   if ((event.currentTarget as HTMLElement).scrollTop > 6) {
     showScrollGuide.value = false
@@ -162,7 +326,13 @@ onBeforeUnmount(() => {
     aria-label="反走私小专家回忆录"
     @scroll.passive="handleMemoirScroll"
   >
-    <button class="memoir-view__back" type="button" aria-label="返回冒险地图" @click="emit('back')">
+    <button
+      class="memoir-view__back"
+      type="button"
+      aria-label="返回冒险地图"
+      data-export-hidden
+      @click="emit('back')"
+    >
       <img :src="backButtonImage" alt="" draggable="false" />
     </button>
 
@@ -362,14 +532,52 @@ onBeforeUnmount(() => {
           >{{ segment.text }}</strong><span v-else>{{ segment.text }}</span></template></p>
         <p class="memoir-sr-only">{{ memoirClosingText }}</p>
       </div>
+
+      <div class="memoir-closing__actions" data-export-hidden>
+        <button
+          class="memoir-closing__download"
+          type="button"
+          :disabled="isExportingMemoir"
+          @click="downloadMemoir"
+        >
+          <span>{{ isExportingMemoir ? '正在生成长图…' : '保存成长回忆录' }}</span>
+          <i v-if="!isExportingMemoir" class="memoir-closing__download-arrow" aria-hidden="true"></i>
+        </button>
+        <p v-if="exportMemoirError" class="memoir-closing__download-error" role="status">
+          {{ exportMemoirError }}
+        </p>
+      </div>
     </section>
 
     <Transition name="memoir-scroll-guide">
-      <div v-if="showScrollGuide" class="memoir-view__scroll-guide" aria-hidden="true">
+      <div
+        v-if="showScrollGuide"
+        class="memoir-view__scroll-guide"
+        aria-hidden="true"
+        data-export-hidden
+      >
         <span></span>
         <span></span>
       </div>
     </Transition>
+
+    <Teleport to="body">
+      <div
+        v-if="memoirPreviewUrl"
+        class="memoir-save-preview"
+        role="dialog"
+        aria-modal="true"
+        aria-label="保存成长回忆录长图"
+      >
+        <header class="memoir-save-preview__header">
+          <p>请长按下方长图，选择“保存图片”</p>
+          <button type="button" aria-label="关闭长图预览" @click="closeMemoirPreview">关闭</button>
+        </header>
+        <div class="memoir-save-preview__content">
+          <img :src="memoirPreviewUrl" alt="反走私成长回忆录长图" />
+        </div>
+      </div>
+    </Teleport>
 
   </main>
 </template>
@@ -1020,6 +1228,100 @@ onBeforeUnmount(() => {
   display: none;
 }
 
+.memoir-view.is-exporting .memoir-closing__typed::after {
+  display: none;
+}
+
+.memoir-closing__actions {
+  display: flex;
+  width: 100%;
+  margin-top: clamp(18px, 5vw, 36px);
+  padding-bottom: clamp(10px, 3vw, 24px);
+  grid-column: 1 / -1;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.memoir-closing__download {
+  display: inline-flex;
+  min-width: min(68%, 330px);
+  padding: clamp(10px, 2.8vw, 16px) clamp(22px, 6vw, 42px);
+  border: clamp(2px, 0.55vw, 4px) solid #e78b18;
+  border-radius: 48% 52% 47% 53% / 52% 45% 55% 48%;
+  background: #ffb52f;
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 55%),
+    2px 3px 0 rgb(174 91 7 / 22%);
+  color: #fff;
+  font-family: "Kaiti SC", "STKaiti", "KaiTi", serif;
+  font-size: clamp(0.88rem, 3.7vw, 1.35rem);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-shadow: 0 1px 1px rgb(128 57 0 / 34%);
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 2.4vw, 14px);
+  cursor: pointer;
+  appearance: none;
+  touch-action: manipulation;
+}
+
+.memoir-closing__download:active:not(:disabled) {
+  box-shadow: inset 0 2px 3px rgb(140 67 0 / 22%);
+  transform: translateY(2px) scale(0.98);
+}
+
+.memoir-closing__download:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.memoir-closing__download:focus-visible {
+  outline: 3px solid #60bde9;
+  outline-offset: 3px;
+}
+
+.memoir-closing__download-arrow {
+  position: relative;
+  display: block;
+  width: clamp(14px, 3.8vw, 20px);
+  height: clamp(18px, 4.8vw, 25px);
+  flex: none;
+  animation: memoir-download-arrow 1.1s ease-in-out infinite;
+}
+
+.memoir-closing__download-arrow::before {
+  position: absolute;
+  top: 1px;
+  left: 50%;
+  width: clamp(2px, 0.65vw, 4px);
+  height: 68%;
+  border-radius: 999px;
+  background: #fff;
+  content: "";
+  transform: translateX(-50%);
+}
+
+.memoir-closing__download-arrow::after {
+  position: absolute;
+  bottom: 1px;
+  left: 50%;
+  width: 48%;
+  aspect-ratio: 1;
+  border-right: clamp(2px, 0.65vw, 4px) solid #fff;
+  border-bottom: clamp(2px, 0.65vw, 4px) solid #fff;
+  content: "";
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.memoir-closing__download-error {
+  margin: 0;
+  color: #b54a28;
+  font-size: clamp(0.7rem, 2.6vw, 0.95rem);
+  font-weight: 700;
+}
+
 .memoir-sr-only {
   position: absolute;
   width: 1px;
@@ -1033,10 +1335,10 @@ onBeforeUnmount(() => {
 }
 
 .memoir-view__back {
-  position: absolute;
+  position: fixed;
   top: calc(1.8% + env(safe-area-inset-top, 0px));
   left: max(3.5%, env(safe-area-inset-left, 0px));
-  z-index: 2;
+  z-index: 20;
   width: 10.5%;
   aspect-ratio: 1;
   margin: 0;
@@ -1098,6 +1400,66 @@ onBeforeUnmount(() => {
   animation-delay: 0.18s;
 }
 
+.memoir-save-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  background: rgb(18 31 44 / 96%);
+}
+
+.memoir-save-preview__header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  min-height: 56px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgb(18 31 44 / 94%);
+  color: #fff;
+}
+
+.memoir-save-preview__header p {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.memoir-save-preview__header button {
+  flex: none;
+  padding: 7px 14px;
+  border: 1px solid rgb(255 255 255 / 65%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 12%);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  appearance: none;
+}
+
+.memoir-save-preview__content {
+  flex: 1;
+  padding: 12px 12px calc(22px + env(safe-area-inset-bottom, 0px));
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.memoir-save-preview__content img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 auto;
+  background: #fffdf6;
+  user-select: none;
+  -webkit-touch-callout: default;
+}
+
 .memoir-scroll-guide-leave-active {
   transition: opacity 220ms ease, transform 220ms ease;
 }
@@ -1132,11 +1494,28 @@ onBeforeUnmount(() => {
   }
 }
 
+@keyframes memoir-download-arrow {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: translateY(-2px);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(3px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .memoir-view__scroll-guide span {
     animation: none;
     opacity: 0.8;
     transform: translateX(-50%) rotate(45deg);
+  }
+
+  .memoir-closing__download-arrow {
+    animation: none;
   }
 }
 </style>
